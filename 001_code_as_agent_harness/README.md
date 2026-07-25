@@ -3,7 +3,7 @@
 Companion Value Vault for the Vector & Loop video **"Agent Harness: The Blind Spot in
 Every Multi-Agent Coder."**
 
-Video: [embed/link placeholder — add the published YouTube URL here once uploaded]
+Video: https://www.youtube.com/watch?v=2H_R327XpS0&t=612s
 
 ## What this ships
 
