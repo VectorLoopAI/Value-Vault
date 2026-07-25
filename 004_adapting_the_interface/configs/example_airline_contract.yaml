@@ -1,0 +1,47 @@
+# tau-bench Airline environment — example Environment Contract Layer delta (ΔC) and
+# Action Realization Layer guard, as described in the video (SEG 22) and the paper's
+# appendix inventories (Tables 5-7). This is the concrete, auditable business-rules
+# artifact the paper contrasts against a fine-tuned weight update: every line here is
+# something a human can read, point at, and explain.
+
+environment: tau-bench-airline
+
+contract_layer:
+  # C' = C ⊕ ΔC — these lines get appended to the model-visible tool contract before
+  # interaction starts (Layer 1, fires "before-interaction").
+  delta_c:
+    - rule: flight_search_arguments
+      text: >
+        The flight search tool accepts ONLY origin, destination, and date. Do not pass
+        cabin class, passenger count, or price filters to flight search — filter the
+        results yourself after the call returns.
+    - rule: passenger_cap
+      text: "A single reservation may include at most 5 passengers."
+    - rule: certificate_policy
+      text: "At most one travel certificate may be applied per reservation."
+
+action_realization_layer:
+  # RealizeAction guard for book_reservation: validate / canonicalize / block.
+  guarded_tool: book_reservation
+  checks:
+    - name: duplicate_payment_id
+      rule: >
+        Reject if the payment_id supplied has already been used in another
+        reservation in this trajectory.
+      on_fail: "block"
+      block_message: >
+        This payment method was already used in reservation {other_reservation_id}.
+        Choose a different payment method or confirm the customer wants to reuse it
+        through the explicit reuse-payment flow.
+    - name: connected_itinerary
+      rule: "Reject if the flight segments do not form a connected itinerary (arrival airport of leg N must equal departure airport of leg N+1)."
+      on_fail: "block"
+      block_message: "Flight segments are not connected — leg {n} arrives at {a} but leg {n+1} departs from {b}."
+    - name: seat_availability
+      rule: "Reject if requested cabin/seat count exceeds available inventory for the flight."
+      on_fail: "block"
+      block_message: "Requested seat count exceeds availability on flight {flight_number}."
+    - name: exact_payment_total
+      rule: "Reject unless the supplied payment total exactly equals the computed itinerary total (fare + fees - certificate value)."
+      on_fail: "block"
+      block_message: "Payment total {given} does not match the computed total {expected}."

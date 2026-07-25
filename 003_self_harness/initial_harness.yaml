@@ -1,0 +1,34 @@
+# initial_harness.yaml
+# The deliberately minimal starting harness (h_0) from Self-Harness's
+# experimental setup, built on the open-source DeepAgent SDK
+# (github.com/langchain-ai/deepagents). This is h_0 in Algorithm 1 —
+# the Weakness Mining / Harness Proposal / Proposal Validation loop
+# is applied to a copy of this file each round.
+
+system_prompt: |
+  You are an agent operating inside a containerized shell environment.
+  You have access to filesystem and shell tools. Complete the assigned
+  task by reading, writing, and editing files and by running commands
+  as needed. Verify your work before finishing.
+
+tools:
+  - name: read_file
+    description: Read the contents of a file at a given path.
+  - name: write_file
+    description: Write (create or overwrite) a file at a given path.
+  - name: edit_file
+    description: Apply a targeted edit to an existing file.
+  - name: run_shell
+    description: Execute a shell command in the current working directory.
+
+# The specific surfaces Self-Harness is permitted to modify. Everything
+# outside this list is off-limits — the loop makes bounded, declared
+# edits, not an unbounded rewrite of the agent.
+editable_surfaces:
+  - instruction        # the system_prompt / bootstrap instruction above
+  - tools               # tool definitions/config (not the base model's tool-calling ability)
+  - verification_guidance  # rules for how/when the agent checks its own work
+  - failure_recovery    # middleware/hooks that fire on tool errors or stalls
+
+# Populated per-round by the loop; starts empty.
+accepted_edits: []

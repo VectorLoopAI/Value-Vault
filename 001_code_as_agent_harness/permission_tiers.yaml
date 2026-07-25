@@ -1,0 +1,68 @@
+# Permission-tier checklist — companion to Vector & Loop video 001 (SEG 16).
+#
+# Load this into your own routing/gateway layer (e.g. a LiteLLM-style proxy policy,
+# a custom pre-tool-call middleware, an MCP server's permission layer) to gate what
+# an agent is allowed to do before it earns the next tier. Consumed by
+# pev_loop.py's PermissionTier enum in this same folder (kept in sync by hand —
+# treat this file as the checklist source of truth, the Python enum as its
+# runtime mirror).
+
+tiers:
+  - id: 1
+    name: read_only
+    description: >
+      Browsing, retrieval, static inspection. No mutation of any kind, anywhere.
+    allowed_operations:
+      - fs.read
+      - fs.list
+      - code_search
+      - get_tree_structure
+      - go_to_definition
+      - web.fetch_readonly
+    requires_human_gate: false
+
+  - id: 2
+    name: sandbox_edit
+    description: >
+      Local patching, running tests, isolated dependency installs — inside an
+      ephemeral sandbox only. Nothing here touches the real environment.
+    allowed_operations:
+      - fs.write_sandbox
+      - shell.run_tests
+      - package_install_isolated
+      - git.diff
+      - git.commit_sandbox_branch
+    requires_human_gate: false
+
+  - id: 3
+    name: full_access
+    description: >
+      Network calls, credentials, deployment, destructive filesystem ops, git
+      history rewrite. The tier that actually leaves the sandbox.
+    allowed_operations:
+      - network.call
+      - secrets.read
+      - deploy.publish
+      - git.push
+      - git.rebase_history
+      - fs.delete_outside_sandbox
+    requires_human_gate: true   # non-negotiable — see SEG 16 of the video
+
+# Tool lifecycle hooks (SEG 14) — wrap every tool call, not just tier-3 ones.
+tool_lifecycle_hooks:
+  pre_use:
+    - permission_check        # does this call match the agent's current tier?
+    - argument_validation     # are the arguments well-formed and in-scope?
+    - human_gate_if_required  # blocks on approval for tier-3 calls
+  post_use:
+    - sanitize_output         # strip secrets/PII before it re-enters model context
+    - summarize_logs          # compact raw stdout/stderr into a memory-sized trace
+    - update_memory           # write to working / semantic / experiential memory
+    - trigger_verification    # hand off into the Verify stage of the PEV loop
+
+# How an agent moves up a tier — never starts at the center (SEG 16).
+promotion_rule: >
+  An agent earns the next tier by a passing track record on the current one
+  (e.g. N consecutive PEV-verified sandbox_edit changes with zero rollbacks).
+  Full-access is never auto-granted regardless of track record — the human
+  gate on tier 3 is a permanent property of the tier, not a bootstrap step.

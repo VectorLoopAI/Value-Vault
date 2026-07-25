@@ -1,0 +1,64 @@
+# harness_config.yaml — Harness-1 reference config (Vector & Loop Value Vault, video 005)
+#
+# Every value tagged "(paper)" is a constant stated in the source note / script for this
+# video. Every value tagged "(illustrative default)" is NOT published anywhere in the
+# source material — the paper states the reward's *structure* (which terms exist, and
+# which few scalar constants it uses) but not the raw relative weights combining every
+# sub-term — and is provided only so the reference code in code/reward.py runs end to
+# end. Tune the illustrative defaults to your own setup; do not cite them as the paper's
+# numbers.
+
+curate:
+  cap: 30                       # (paper) M=30; harness evicts lowest-importance on overflow
+  importance_levels: [very high, high, fair, low]
+  verify_before_promote: true   # (paper) "very high" requires a prior verify() pass
+
+auto_seed:
+  k: 8                          # (paper) top-8 reranked results seed the curated set
+  tag: fair                     # (paper) auto-seeded docs are tagged "fair"
+
+compression:
+  top_k_sentences: 4            # (paper) K=4, BM25-scored against the query
+
+dedup:
+  jaccard_threshold: 0.85       # (paper) MinHash-LSH near-duplicate threshold
+  # code/working_memory.py implements a small stdlib MinHash-style fingerprint so this
+  # runs dependency-free; swap in a real MinHash-LSH library (e.g. `datasketch`) at this
+  # same threshold for production-scale corpora.
+
+evidence_graph:
+  entity_types: [multi_word_proper_noun, four_digit_year, numeric_date]  # (paper)
+  bridge_doc_min_frequent_entities: 2                                    # (paper)
+
+reward:
+  pi_empty: -0.2                # (paper) empty-curated-set short-circuit
+  f_beta: 2                     # (paper) beta=2, weights recall ~4x precision
+  diversity_target_nu0: 6       # (paper) tool-diversity bonus target (distinct tools)
+  turn_cap: 40                  # (paper) max turns per episode
+
+  # (illustrative default) relative weights combining the reward sub-terms — not
+  # published; tune freely for your own reward surface:
+  set_quality_weight: 1.0
+  coverage_weight: 0.3
+  answer_evidence_weight: 0.2
+  answer_miss_penalty: 0.3
+  diversity_weight: 0.15
+  turn_penalty_weight: 0.05
+
+sft:
+  teacher_model: gpt-5.4        # (paper) single teacher, run live inside the full harness
+  min_docs_returned: 1          # (paper) filter: format-valid + >=1 doc returned
+  min_curated_recall: 0.10      # (paper) filter: final curated recall >= 0.10
+  kept_trajectories: 899        # (paper) trajectories surviving the filter
+  lora_rank: 32                 # (paper)
+  epochs: 3                     # (paper)
+  init_checkpoint: step-550     # (paper) initializes RL
+
+rl:
+  algorithm: CISPO              # (paper) on-policy, within-group advantage normalization
+  kl_anchor: false              # (paper) no KL anchor holding it near the SFT init
+  turn_cap: 40                  # (paper)
+  reward_type: terminal_only    # (paper)
+  train_domain: SEC filings     # (paper) trains only on SEC data
+  train_queries: 3453           # (paper)
+  drop_identical_reward_groups: true  # (paper) zero-signal groups dropped from the gradient

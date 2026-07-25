@@ -1,0 +1,37 @@
+# Accepted harness edit — MiniMax M2.5 (Terminal-Bench 2.0, count-dataset-tokens
+# case study, SEG 23 in the video).
+#
+# Failure this targets: the agent kept exploring the dataset after it had
+# already found the metadata config it needed, timed out, and never wrote
+# the required answer artifact.
+#
+# Edited surface: `instruction` (the bootstrap system-prompt line).
+# This is a minimal, single-surface edit — no rewrite of tools or control flow.
+
+target_failure_pattern:
+  cause: timeout
+  behavior: over_exploration_after_goal_found
+  mechanism: no_early_artifact_creation
+
+edited_surface: instruction
+
+diff:
+  before: >
+    Identify the smallest relevant edit surface.
+  after: >
+    Identify the required output artifact and create an initial version
+    as early as possible. Create the answer first, refine it second.
+
+expected_effect: >
+  Agent writes a first-draft answer file immediately after locating the
+  relevant data, then iterates/refines it, instead of continuing to explore
+  indefinitely before ever producing an artifact.
+
+regression_risk: >
+  Low — only changes ordering/priority of "produce artifact" vs. "keep
+  exploring"; does not remove any exploration capability.
+
+validated_result:
+  held_in_delta_pp: +7.0     # 43.0 -> 50.0
+  held_out_delta_pp: +21.4   # 40.5 -> 61.9
+  promoted: true

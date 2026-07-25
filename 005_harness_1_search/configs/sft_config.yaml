@@ -1,0 +1,27 @@
+# sft_config.yaml — Stage 1 (SFT) trainer config, values as stated in the source note (SEG 15)
+base_model: gpt-oss-20b
+teacher_model: gpt-5.4
+teacher_runs_live_in_harness: true      # same tools + rendering the student will see
+
+trajectory_filter:
+  format_valid: true
+  min_docs_returned: 1
+  min_final_curated_recall: 0.10
+
+kept_trajectories: 899
+
+finetune:
+  method: lora
+  lora_rank: 32
+  epochs: 3
+
+checkpoint_for_rl_init: step-550
+
+# The supervised prior is deliberately narrow — it teaches operating the interface,
+# not search skill (that's RL's job). Five things only:
+teaches_only:
+  - tool_call_format
+  - search_then_curate_rhythm
+  - importance_tagging_discipline
+  - memory_review
+  - verify_before_promote_norm

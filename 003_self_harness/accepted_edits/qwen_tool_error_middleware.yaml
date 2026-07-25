@@ -1,0 +1,46 @@
+# Accepted harness edit — Qwen3.5-35B-A3B (Terminal-Bench 2.0, extract-elf
+# case study, SEG 21-22 in the video — the file-deletion story).
+#
+# Failure this targets: the agent created the required extractor script,
+# hit repeated overwrite/edit-file failures on that same artifact, kept
+# retrying, and then — right before giving up — deleted the file itself,
+# so the verifier failed on a missing required artifact.
+#
+# Edited surface: `failure_recovery` — a new tool-error-triggered
+# middleware system prompt, not a change to the base instruction.
+
+target_failure_pattern:
+  cause: missing_artifact
+  behavior: self_deleted_required_file
+  mechanism: no_error_recovery_policy
+
+edited_surface: failure_recovery
+
+middleware:
+  trigger: on_tool_call_error
+  system_prompt: |
+    A tool call just failed. Do not repeat the same failing operation, and
+    do not delete or discard any artifact the task requires. Instead:
+      1. Recover the missing or broken artifact (recreate it if necessary).
+      2. Re-check and, if needed, fix the underlying logic that caused the
+         failure (e.g. parsing, extraction, formatting).
+      3. Re-write the output.
+      4. Validate the output's structure/content (e.g. confirm it parses
+         as valid JSON, or matches the expected schema) before proceeding.
+      5. Leave the required artifact in place — do not remove it, even if
+         you plan to keep working.
+
+expected_effect: >
+  On a tool error, the agent is redirected into a recover-and-verify
+  sequence instead of hammering the same failing call or deleting its own
+  output. Directly prevents the extract-elf failure mode.
+
+regression_risk: >
+  Low-to-moderate — fires only on tool-call errors; does not change
+  behavior on successful runs. Risk is over-triggering on transient/benign
+  tool errors, which held-out evaluation is designed to catch.
+
+validated_result:
+  held_in_delta_pp: +20.9    # 15.1 -> 36.0 (part of the combined Qwen edit set)
+  held_out_delta_pp: +14.3   # 23.8 -> 38.1
+  promoted: true

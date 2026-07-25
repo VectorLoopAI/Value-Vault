@@ -1,0 +1,50 @@
+# Accepted harness edit — GLM-5 (Terminal-Bench 2.0, build-pov-ray case
+# study, SEG 24 in the video).
+#
+# Failure this targets: the agent burned most of its budget on long,
+# monolithic downloads, then finalized anyway despite repeated non-zero
+# sanity-check failures (rationalizing them away instead of stopping).
+#
+# Edited surfaces: `tools` (session persistence) and
+# `verification_guidance` (a new stop-exploring/start-implementing gate).
+
+target_failure_pattern:
+  cause: verifier_reject
+  behavior: rationalized_failing_checks
+  mechanism: no_explore_to_implement_gate
+
+edited_surfaces:
+  - tools
+  - verification_guidance
+
+edits:
+  - name: persistent_shell_session_state
+    surface: tools
+    description: >
+      Installed tools and PATH changes now persist across shell sessions
+      within a task; the agent verifies tool accessibility after modifying
+      the environment, instead of re-doing setup work redundantly.
+
+  - name: explore_to_implement_gate
+    surface: verification_guidance
+    system_prompt: |
+      If you have spent a significant portion of your available effort
+      exploring or downloading without producing any required artifact,
+      stop exploring now and switch to implementing and testing a concrete
+      solution. Work in bounded stages: check the evidence you already have
+      before committing to more exploration or downloads, and repair a
+      failing verification check before declaring the task finalized.
+
+expected_effect: >
+  Agent works in bounded stages, checks existing evidence before spending
+  more budget, repairs failing checks instead of rationalizing past them,
+  and only finalizes once verification actually passes.
+
+regression_risk: >
+  Low — the gate only fires past a budget threshold with no artifacts
+  produced; does not restrict normal exploration on tasks that need it.
+
+validated_result:
+  held_in_delta_pp: +9.3     # 47.7 -> 57.0
+  held_out_delta_pp: +14.2   # 42.9 -> 57.1
+  promoted: true

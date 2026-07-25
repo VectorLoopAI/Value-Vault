@@ -1,0 +1,53 @@
+# ALFWorld environment — example WorldModel + subgoal state machine, as described in
+# the video (SEG 23) and the paper's appendix inventories. ALFWorld is where the frozen
+# model's failure mode was dominated by trajectory degeneration (repetition, oscillation,
+# revisiting explored locations), so this is primarily a Trajectory Regulation Layer +
+# Procedural Skill Layer artifact: an explicit world state plus a subgoal sequencer that
+# gives the frozen model a map and a checklist instead of a new brain.
+
+environment: alfworld
+
+world_model:
+  # Tracked across the whole episode; updated from environment observations, not
+  # inferred by the model.
+  tracked_state:
+    - inventory              # objects currently held
+    - current_location        # e.g. "countertop 1"
+    - visited_locations       # set, so revisits can be flagged instead of silently repeated
+
+subgoal_state_machine:
+  # A linear sequence of subgoals for the canonical ALFWorld task shape
+  # ("put a [cleaned/heated/cooled] object in/on a receptacle").
+  states:
+    - name: FIND
+      goal: "Locate the target object."
+      transition: "-> TAKE once the object is in view and reachable"
+    - name: TAKE
+      goal: "Pick up the target object."
+      transition: "-> CLEAN_HEAT_COOL if the task requires processing, else -> GOTO_DEST"
+    - name: CLEAN_HEAT_COOL
+      goal: "Apply the required processing step (clean / heat / cool) to the held object."
+      transition: "-> GOTO_DEST once processing is confirmed by environment feedback"
+    - name: GOTO_DEST
+      goal: "Navigate to the destination receptacle named in the task."
+      transition: "-> PUT (or -> LAMP if the task is an examine-under-lamp variant)"
+    - name: PUT
+      goal: "Place the held object at/in the destination receptacle."
+      transition: "-> EXAMINE if required, else task complete"
+    - name: LAMP
+      goal: "Locate and interact with the lamp for examine-under-lamp tasks."
+      transition: "-> EXAMINE"
+    - name: EXAMINE
+      goal: "Perform the final examine action to close out the task."
+      transition: "-> task complete"
+
+recovery_branch:
+  # Dedicated handling for the ALFWorld "nothing happens" environment message, which
+  # the frozen model otherwise responds to by repeating the same action.
+  trigger_observation: "Nothing happens."
+  action: >
+    Do not repeat the immediately preceding action. Re-check WorldModel.current_location
+    against the current subgoal's preconditions (e.g. is the required receptacle open?
+    is the held object actually processable here?) and either (a) perform the missing
+    precondition action first, or (b) if the current location has already been marked
+    visited for this subgoal, navigate to the next unvisited candidate location instead.

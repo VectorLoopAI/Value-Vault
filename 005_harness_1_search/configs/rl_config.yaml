@@ -1,0 +1,19 @@
+# rl_config.yaml — Stage 2 (RL) trainer config, values as stated in the source note (SEG 16-17)
+init_from: sft_checkpoint_step-550
+
+algorithm: CISPO
+on_policy: true
+advantage_normalization: within_group
+rollout: full_trajectory
+reward_type: terminal_only
+turn_cap: 40
+kl_anchor: false
+drop_zero_variance_groups: true   # groups where every rollout gets an identical reward are
+                                   # dropped from the gradient entirely — no signal, no update
+
+training_data:
+  domain: SEC filings only
+  num_queries: 3453
+
+# reward function + constants: see ../code/reward.py and harness_config.yaml#reward
+reward_config_ref: ../configs/harness_config.yaml#reward

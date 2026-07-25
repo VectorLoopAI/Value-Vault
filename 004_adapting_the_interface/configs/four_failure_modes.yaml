@@ -1,0 +1,58 @@
+# Four recurring agent failure modes (paper Step 1 / script SEG 11-15).
+# Machine-readable form of the taxonomy used by the failure-annotation prompt
+# (prompts/failure_annotation_priority_protocol.md) and referenced by
+# life_harness/action_realization_layer.py and life_harness/trajectory_regulation_layer.py.
+
+failure_modes:
+  - id: ACTION_REALIZATION
+    priority: 1
+    fires_at: pre-execution
+    fixed_by_layer: action_realization
+    description: >
+      The model's intent is plausible but not expressed in an environment-executable
+      form: free-form actions, missing/malformed arguments, invalid function names,
+      non-executable generated code (e.g. unquoted SQL columns, wrong SQL dialect).
+    example_symptoms:
+      - "take_action({...}) with an unparseable JSON-ish blob"
+      - "invalid function name not in the tool schema"
+      - "SQL referencing an unquoted column name in the wrong dialect (DBBench)"
+
+  - id: CONTRACT_MISMATCH
+    priority: 2
+    fires_at: pre-execution / mid-episode
+    fixed_by_layer: environment_contract
+    description: >
+      The action is syntactically executable but violates the intended tool-usage or
+      calling protocol: wrong tool at a critical step, premature final-answer
+      submission, skipping a required intermediate tool, or a semantically wrong
+      argument that still passes schema validation.
+    example_symptoms:
+      - "SUBMIT called before the required lookup tool ran"
+      - "duplicate payment ID passed to book_reservation (Airline)"
+      - "argument type-checks but violates a business rule the schema can't express"
+
+  - id: TRAJECTORY_DEGENERATION
+    priority: 3
+    fires_at: post-feedback / across multiple steps
+    fixed_by_layer: trajectory_regulation
+    description: >
+      Every individual action is valid, but the episode falls into repetition,
+      oscillation, stagnation, or ineffective recovery from a benign environment
+      message such as "nothing happens."
+    example_symptoms:
+      - "look / inventory / examine repeated with no new information (ALFWorld)"
+      - "buying without ever comparing candidate items (WebShop)"
+      - "revisiting an already-explored location"
+
+  - id: RESIDUAL_REASONING
+    priority: 4
+    fires_at: n/a (not interface-fixable)
+    fixed_by_layer: null
+    description: >
+      The protocol is followed correctly throughout, but the model makes an incorrect
+      inference, computation, retrieval, or value-selection decision. This is the only
+      one of the four that is a genuine reasoning error, and it is what remains after
+      the interface failures above are fixed.
+    example_symptoms:
+      - "correct tool, correct arguments, wrong final numeric answer"
+      - "retrieved the wrong record despite a well-formed, valid query"
