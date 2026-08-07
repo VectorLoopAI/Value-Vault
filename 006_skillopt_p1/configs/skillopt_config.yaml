@@ -1,0 +1,57 @@
+# skillopt_config.yaml — default hyperparameters from SkillOpt §4, transcribed
+# from backlog/006_skillopt.md. Every value below is the paper's own reported
+# default unless marked (illustrative) — the paper does not publish every
+# internal constant (e.g. Ranking.md's exact utility weights), so those are
+# flagged as defaults you should tune for your own setup.
+
+training:
+  epochs: 4                        # (paper)
+  rollout_batch_size: 40           # tasks per step, default/direct-chat setting (paper)
+  reflection_minibatch_size: 8     # B_m — failure and success minibatches (paper)
+  analyst_workers: 16              # parallel analyst calls per reflection round (paper)
+  merge_batch_size: 8              # (paper)
+  teacher_refinement_rounds_max: 3 # per minibatch (paper)
+  teacher_reasoning_effort: medium # (paper)
+  student_reasoning_effort: medium # (paper)
+
+textual_learning_rate:
+  lt_start: 4                      # edit budget at epoch 0 (paper)
+  lt_floor: 2                      # edit budget floor (paper)
+  schedule: cosine                 # constant | linear | cosine | autonomous — cosine is default (paper)
+
+validation_gate:
+  strict_accept: true              # candidate must be strictly > current selection score; ties rejected (paper)
+  rejected_edit_buffer: true       # epoch-local buffer of tried-and-rejected edits (paper)
+  edit_apply_report: true          # per-step JSON audit log of accept/skip status (paper)
+
+slow_update:
+  sample_size: 20                  # re-sampled training items per epoch (paper)
+  protected_field: "SLOW_UPDATE"   # markers ordinary step-level edits may never touch (paper)
+
+meta_skill:
+  enabled: true                    # optimizer-side-only memory, never shipped to the target model (paper)
+
+edit_mode:
+  default: patch                             # localized append/insert_after/replace/delete (paper)
+  alternative: rewrite_from_suggestions      # full rewrite (paper; worse than any bounded budget in ablation)
+
+ranking_criteria:
+  # The paper names these four criteria but does not publish numeric weights
+  # between them — the weights below are an illustrative default only.
+  systematic_impact: 0.4     # (illustrative) — direct signal: support_count from Merge_Final.md
+  complementarity: 0.2       # (illustrative) — interacts well with already-accepted rules
+  generality: 0.25           # (illustrative) — fixes a class of failures, not one input
+  actionability: 0.15        # (illustrative) — concrete/checkable vs. vague advice
+
+deployed_skill:
+  target_token_range: [300, 2000]  # best_skill.md size range observed across benchmarks (paper)
+
+# small-pool benchmark overrides (paper §4)
+benchmark_overrides:
+  live_mathematician_bench:
+    training_items_per_epoch: 35
+    rollout_batch_size: 200
+  alfworld:
+    training_tasks: 39
+    selection_environments: 140
+    test_environments: 134
