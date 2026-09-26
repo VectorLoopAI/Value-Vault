@@ -1,0 +1,71 @@
+# efc_config.yaml — every fixed constant behind the Effective Feedback
+# Compute (EFC) scoring system, transcribed from backlog/008_agent_scaling_laws_efc.md
+# ("Scaling Laws for Agent Harnesses via Effective Feedback Compute",
+# Zhang, Wang, Xu, Zhu, Che — Harbin Institute of Technology, 2026,
+# arXiv:2605.29682v2). Every value is the paper's own fixed constant unless
+# marked (illustrative) — the paper does not publish everything (e.g. the
+# Estimated-EFC weight vector theta, and most of the NRS-EFC status-quality
+# table past its two clean endpoints), so those are flagged as defaults you
+# should calibrate for your own setup.
+
+efc_event_score:
+  kappa: 10.0     # fixed across every experiment in the paper (paper)
+  # EFC_t = kappa * I_t * V_t * R_t * M_t — multiplicative, not additive.
+  # Any single factor (informativeness/validity/relevance/memory_update) at
+  # 0 zeroes the whole event's credit. See code/efc_score.py.
+
+raw_cost:
+  # C_raw(tau) = lambda_tok*(N_tok/U_tok) + lambda_tool*N_tool
+  #            + lambda_time*T_wall + lambda_op*N_op
+  u_tok: 1000.0       # token unit (paper)
+  lambda_tok: 1.0     # per-1000-token weight (paper)
+  lambda_tool: 0.35   # per tool call (paper)
+  lambda_time: 0.10   # per wall-clock unit (paper)
+  lambda_op: 0.04     # per operation (paper)
+
+task_demand:
+  # D_task = max(epsilon_D, L * H_tool * S_state * (1+N_obs) * (1 - V_ver))
+  epsilon_d: 0.001    # floor keeping D_task off zero for trivial tasks (illustrative floor value — paper states a floor exists, not its exact number)
+  # L=min reasoning/action steps, H_tool=tool-selection ambiguity,
+  # S_state=state-tracking demand, N_obs=observation noise,
+  # V_ver=verifier-signal visibility in [0,1] (only lowers D_task, per §3.4).
+
+estimated_efc:
+  # EFC_hat_t = max(0, exp(theta0 + theta . phi(e_t)) - 1)
+  # phi(e_t) = [c_t, h_t, z_t, p_t, m_t, a_t, q_t, delta_t, rho_t] — nine
+  # trace-observable features (paper names these; does not publish the
+  # fitted weights below — calibrate theta on your own labeled traces).
+  theta0: -1.0   # (illustrative — not published)
+  theta:         # (illustrative — not published)
+    c_t: 0.9      # checker fired
+    h_t: 0.3      # checker scope
+    z_t: 0.6      # tool result referenced later
+    p_t: 0.5      # plan changed
+    m_t: 0.8      # memory retained
+    a_t: 0.4      # repeated error avoided
+    q_t: 0.3      # observation consistency
+    delta_t: 0.5  # subgoal progress
+    rho_t: -0.1   # trace position
+
+nrs_efc:
+  # EFC_hat_t^nr = (EFC_hat_t * Q_t * G_t^nr * Lambda_t^nr) / (1 + alpha_A*A_t)
+  alpha_a: 0.35   # ambiguity-penalty coefficient, fixed across every experiment (paper)
+  status_quality:
+    passed: 1.00        # a checker/test that actually passed (paper — clean endpoint)
+    assertion_error: 0.70  # (illustrative — OCR-damaged in source, see README)
+    runtime_error: 0.55    # (illustrative — OCR-damaged in source, see README)
+    timeout: 0.40           # (illustrative — OCR-damaged in source, see README)
+    static_reject: 0.20      # (illustrative — OCR-damaged in source, see README)
+    api_error: 0.00           # infrastructure noise, not task signal (paper — clean endpoint)
+  loop_gate_example:
+    # SEG06 of Part 2: one repair event, scored twice.
+    status_aware: 0.95   # Lambda_t under status-aware scoring (paper, verbatim)
+    nrs_redundant: 0.45  # Lambda_t^nr for the same event once repeated (paper, verbatim)
+
+efc_adapter:
+  # EFC-ADAPTER's stop/rollback rule: halt when recent-window ROI drops
+  # below a fixed threshold epsilon. The paper states the rule exists and
+  # is fixed; it does not publish the numeric threshold, so this is a
+  # starting point to tune against your own harness's ROI distribution.
+  stop_threshold: 0.02   # (illustrative — paper describes the rule, not this number)
+  window: 5               # (illustrative — recent-window size for the stop-rule check)

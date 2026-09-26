@@ -1,0 +1,30 @@
+# benchmarks.yaml -- the three benchmarks used in "Harness Updating Is Not
+# Harness Benefit" (arXiv:2605.30621v1), deliberately different in shape.
+# All fields (paper).
+
+swe_bench_verified:
+  tasks: 500
+  scope: "12 GitHub repositories"
+  scoring: "binary -- resolved / not resolved"
+  judge: "hidden fail-to-pass and pass-to-pass test suite"
+  evolvable_scope: ["skills/"]
+  note: "no partial credit, no rubric to game -- purest test of the writer role"
+
+mcp_atlas:
+  tasks: 500
+  scope: "36 real Model Context Protocol servers, 220 tools exposed"
+  tool_calls_per_task: "3-6"
+  scoring: "claims-based -- fraction of reference claims the answer satisfies"
+  evolvable_scope: ["skills/", "prompts/system.md", "memory/ (append-only JSONL)"]
+  note: "widest evolvable scope of the three -- evolver can rewrite standing instructions, not just add files"
+
+skillsbench:
+  tasks: 86
+  domains: 11   # software, data analysis, document processing, audio synthesis, etc.
+  scoring: "deterministic per-task verifier, binary score, averaged over 5 trials (TerminalBench-style)"
+  starting_harness: "empty skill set"
+  evolvable_scope: ["skills/"]
+  note: >
+    the no-evolution baseline starts from NOTHING, so the evolver is
+    authoring a harness from zero, not refining one. Smallest task count
+    of the three -- this is the benchmark flagged noisy in both episodes.

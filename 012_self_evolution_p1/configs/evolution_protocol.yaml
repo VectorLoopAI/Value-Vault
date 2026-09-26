@@ -1,0 +1,77 @@
+# evolution_protocol.yaml — the agent/evolver formalism and every locked
+# experimental control from "Harness Updating Is Not Harness Benefit"
+# (arXiv:2605.30621v1), transcribed from backlog/009_disentangling_self_evolution.md
+# and cross-checked against both videos' scripts. Values marked (paper) are
+# stated exactly in the source paper; nothing here is (illustrative) — this
+# episode's whole point is the measurement protocol itself, so it's
+# reproduced verbatim.
+
+formalism:
+  agent: "A_t = (f, H_t)"                       # fixed model backbone f + harness state H_t (paper)
+  harness_contents: ["prompts", "skills", "memories"]   # (paper)
+  frozen_and_never_edited: ["tool interfaces", "eval scripts"]  # evolver cannot touch these (paper)
+  evolver_update_rule: "delta_H_t = e(H_{t-1}, D_t)"     # evolver + evidence -> harness delta (paper)
+  loop: "attempt task batch -> accumulate evidence D_t -> evolver updates harness -> repeat for T steps"  # (paper)
+  weight_updates: none                          # entirely a weight-fixed, harness-editing setup (paper)
+
+capabilities:
+  harness_updating:
+    definition: "the capability to produce useful persistent harness updates from execution evidence"  # (paper)
+    exercised_as: "evolver"
+    aka: "the writer"
+  harness_benefit:
+    definition: "the capability to benefit from updated harnesses during task solving"  # (paper)
+    exercised_as: "task-solving agent"
+    aka: "the reader"
+
+metrics:
+  base_capability:
+    formula: "M_base(f) = J_X(f, H_0)"           # (paper)
+    meaning: "task-solving performance of the un-evolved agent under the starting harness"
+  pairwise_evolution_gain:
+    formula: "Delta(f, e) = J_X(f, H_T^(f,e)) - M_base(f)"  # (paper)
+    meaning: "improvement one specific agent-evolver pairing produces over that agent's own baseline"
+  harness_updating_capability:
+    formula: "Delta_update(e) = mean over f in F* of Delta(f, e)"  # (paper)
+    meaning: "average gain an evolver produces across the fixed anchor AGENT set -- isolates the writer"
+  harness_benefit_capability:
+    formula: "Delta_benefit(f) = max over e in E* of Delta(f, e)"  # (paper)
+    meaning: "best gain an agent can extract across the fixed anchor EVOLVER set -- isolates the reader"
+
+anchor_sets:
+  F_star_anchor_agents: ["Claude Opus 4.6", "Claude Sonnet 4.6", "Qwen3-235B-A22B"]  # (paper)
+  E_star_anchor_evolvers: ["Claude Opus 4.6", "Claude Sonnet 4.6", "Qwen3-235B-A22B"]  # (paper)
+  note: "same three models anchor BOTH axes -- what makes Delta_update and Delta_benefit comparable"  # (paper)
+
+evaluation_control:
+  in_situ_scoring: true                          # every task scored under H_{t-1}, not H_t (paper)
+  reason: "no task's score is inflated by its own contribution to the harness it's graded against"  # (paper)
+
+locked_variables:
+  # exactly one thing varies per experimental cell: the backbone in the
+  # evolver seat, or the backbone in the agent seat (paper)
+  - "seed system prompt (per benchmark, for the solver) -- identical across all backbones"
+  - "one fixed evolver system prompt -- identical across every backbone and every benchmark"
+  - "trajectory window"
+  - "per-task turn limit"
+  - "evolution budget (beta)"
+  - "starting harness H_0"
+
+model_backbones:
+  closed_tier: ["Claude Opus 4.6", "Claude Sonnet 4.6", "Claude Haiku 4.5"]  # (paper)
+  open_tier: ["Qwen3-235B-A22B", "Qwen3-32B", "Qwen3.5-9B", "GPT-OSS-120B"]  # (paper)
+  agent_side_analysis_uses: 6            # all but Qwen3.5-9B (paper)
+  evolver_side_analysis_uses: 7          # all seven (paper)
+  qwen3_5_9b_note: >
+    the smallest model in the paper, added specifically to test whether a
+    substantially smaller open model can still produce useful harness
+    updates (paper)
+
+honesty_note: >
+  SWE-bench Verified and MCP-Atlas give the clearest evidence for both the
+  evolver-flatness result and the non-monotonic harness-benefit curve.
+  SkillsBench's low-base regime is more variable across task domains
+  (paper's own words) -- its evolver-side headline (Qwen3.5-9B beating
+  Opus 4.6) and its agent-side benefit numbers (Haiku 4.5's largest gain,
+  Qwen3-32B tying Opus 4.6) should both be weighted as the noisier of the
+  three benchmarks, not treated as equally load-bearing as SWE/MCP.
