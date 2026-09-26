@@ -1,0 +1,82 @@
+# adacom_config.yaml — default hyperparameters from AdaCoM (arXiv:2605.30785v1),
+# transcribed from backlog/007_adacom_context_management.md. Values marked
+# (paper) are reported exactly in the source paper; values marked
+# (illustrative) are reasonable stand-ins for details the paper describes
+# but does not publish an exact number for (e.g. process-reward magnitudes).
+
+manager:
+  backbone: "Qwen3-4B-Instruct"        # (paper)
+  input_context_window: 32768          # tokens (paper)
+  max_output_tokens: 4096              # tokens (paper)
+  sampling_temperature: 1.0            # (paper) — lower temps -> degenerate repetitive output
+
+training:
+  stage_1: "SFT warm-up"               # teaches only the output/edit format (paper)
+  sft_epochs_browsecomp_plus: 5        # (paper)
+  sft_epochs_mcp_bench_wiki: 2         # (paper)
+  stage_2: "GRPO"                      # Group Relative Policy Optimization (paper)
+  rl_framework: "Trinity-RFT"          # (paper)
+  grpo_group_size: 8                   # both benchmarks (paper)
+  rollout_batch_size: 32               # trajectories (paper)
+  training_batch_size: 768             # manager-step samples (paper)
+  learning_rate: 5.0e-6                # (paper)
+  kl_coefficient: 0.006                # (paper)
+  ppo_clip_range: 0.2                  # (paper)
+  entropy_bonus: none                  # (paper)
+  max_rollout_iterations: 35           # agent iteration cap per rollout (paper)
+  max_training_epochs: 40              # with early stopping (paper)
+  early_stopping_patience_rollout_steps: 20   # (paper)
+
+reward:
+  process_reward_weight_alpha: 0.1     # weight on step-level advantage before renormalization (paper)
+  rules:
+    token_penalty:
+      trigger: "managed context exceeds the length limit"        # (paper)
+      charged_to: "the manager step that caused the overflow"    # (paper)
+      magnitude: -1.0                  # (illustrative) — paper describes the rule, not its exact scale
+    redundant_action_penalty:
+      trigger: "two consecutive identical tool calls (same name, same params)"  # (paper)
+      rationale: "proxy for insufficient preservation of useful information"    # (paper)
+      magnitude: -1.0                  # (illustrative)
+    format_penalty:
+      trigger: "invalid manager JSON, nonexistent message IDs, or missing fields"  # (paper)
+      magnitude: -1.0                  # (illustrative)
+    gold_doc_found_bonus:
+      benchmark: "BrowseComp-Plus only"              # (paper)
+      trigger: "gold/key document found by a search step"        # (paper)
+      credited_to: "the manager step that preceded the successful search"       # (paper)
+      magnitude: 1.0                   # (illustrative)
+
+action_space:
+  operation_fields: ["ids", "role", "justification", "new_content"]  # (paper)
+  ids_constraint: "must be consecutive message IDs"                  # (paper, per Appendix H prompt)
+  role_enum: ["SYSTEM", "USER", "ASSISTANT"]                         # (paper)
+  justification_note: "stripped before the agent ever sees it"       # (paper)
+  new_content_semantics:
+    empty: "deletes the targeted messages"                # (paper)
+    non_empty: "rewrites or merges the targeted messages"  # (paper)
+  untouched_messages: "copied through unchanged"           # (paper)
+  empty_action_list: "context left unchanged"               # (paper)
+
+mcp_bench_wiki_fixed_behavior:
+  trigger_tool: "get_article"                                        # (paper)
+  action: "run an extract operation before the next agent step"      # (paper)
+  reason: "prevent unbounded context growth from long Wikipedia pages"  # (paper)
+
+frozen_agents_evaluated:
+  # trained-on source agents (paper Table 1/2):
+  - name: "Qwen3-Max"
+    native_context_window: 262144    # 256K tokens (paper)
+  - name: "Kimi-K2-Instruct"
+    native_context_window: 262144    # 256K tokens (paper)
+  - name: "GLM-4.5-Air"
+    native_context_window: 131072    # 128K tokens (paper)
+  - name: "DeepSeek-V3"
+    native_context_window: 131072    # 128K tokens (paper)
+  # transfer-only targets, never trained on (paper §5):
+  - name: "GPT-OSS-20B"
+  - name: "Gemini-2.5-Flash"
+  - name: "Seed-1.6-Flash"
+  - name: "GPT-4o-mini"
+
+effective_input_cap_under_adacom: 32768   # tokens, regardless of the agent's native window (paper)
