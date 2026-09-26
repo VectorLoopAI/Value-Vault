@@ -1,0 +1,108 @@
+# The Emilia Gonzalez program — Listing 1 / Figure 4 from the source paper.
+# "PreAct: Computer-Using Agents That Get Faster on Repeated Tasks"
+# Bojie Li, Pine AI, arXiv:2606.17929v1
+#
+# This is the compiled AndroidWorld "add a contact" program exactly as
+# discussed on-screen in Part 1 (SEG 07-08) — 7 states, 3 lifted parameters.
+# It conforms to the paper's formal tuple P = (S, T, M, V):
+#   S = states (id, description, verification predicate)
+#   T = transitions (source, destination, action)
+#   M = metadata (task description, app context, parameter schema, dedup signature)
+#   V = extraction predicates (empty here — this program has no QA/extraction step)
+#
+# Loadable directly by replay_engine.py in this same folder.
+
+metadata:
+  task_description: "Add a new contact with a given first name, last name, and phone number."
+  app_context: "AndroidWorld — Contacts app"
+  dedup_signature: "android.contacts.add_contact.v1"
+  parameters:
+    - name: first_name
+      type: string
+    - name: last_name
+      type: string
+    - name: phone_number
+      type: string
+
+states:
+  - id: contacts_app_open
+    description: "Contacts app is open on its main list screen."
+    verify:
+      predicate: expect_element
+      resource_id: floating_action_button
+    terminal: false
+
+  - id: create_contact_form
+    description: "The new-contact entry form is visible."
+    verify:
+      predicate: expect_element
+      element: "first_name_field"
+      note: "First-name EditText visible."
+    terminal: false
+
+  - id: first_name_entered
+    description: "First name has been typed into the form."
+    verify:
+      predicate: expect_element
+      element: "last_name_field"
+      note: "Last-name field visible."
+    terminal: false
+
+  - id: last_name_entered
+    description: "Last name has been typed into the form."
+    verify:
+      predicate: expect_element
+      element: "phone_field"
+      note: "Phone field visible."
+    terminal: false
+
+  - id: phone_entered
+    description: "Phone number has been typed into the form."
+    verify:
+      predicate: expect_element
+      element: "phone_type_selector"
+      note: "Mobile phone-type selector visible."
+    terminal: false
+
+  - id: phone_type_selected
+    description: "Phone type (Mobile) has been selected."
+    verify:
+      predicate: expect_element
+      element: "save_button"
+      note: "Save button visible."
+    terminal: false
+
+  - id: contact_saved
+    description: "Contact has been saved. Terminal state."
+    verify:
+      predicate: expect_element
+      element: "contact_detail_view"
+    terminal: true
+
+transitions:
+  # Note (per script SEG 07 / backlog note): the compiler emits one small
+  # redundancy — two outgoing transitions from contacts_app_open — that the
+  # replayer tolerates. Both are kept here faithfully rather than collapsed.
+  - source: contacts_app_open
+    destination: create_contact_form
+    action: {kind: action_click, target: floating_action_button}
+  - source: contacts_app_open
+    destination: create_contact_form
+    action: {kind: action_navigate, target: "add_contact_shortcut"}
+  - source: create_contact_form
+    destination: first_name_entered
+    action: {kind: action_type, target: first_name_field, value_param: first_name}
+  - source: first_name_entered
+    destination: last_name_entered
+    action: {kind: action_type, target: last_name_field, value_param: last_name}
+  - source: last_name_entered
+    destination: phone_entered
+    action: {kind: action_type, target: phone_field, value_param: phone_number}
+  - source: phone_entered
+    destination: phone_type_selected
+    action: {kind: action_click, target: phone_type_selector}
+  - source: phone_type_selected
+    destination: contact_saved
+    action: {kind: action_click, target: save_button}
+
+extraction_predicates: []

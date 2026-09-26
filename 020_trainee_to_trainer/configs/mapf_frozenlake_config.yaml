@@ -1,0 +1,41 @@
+# mapf_frozenlake_config.yaml — the controllable MAPF-FrozenLake generator (paper §3.1.1 / SEG 05-06)
+#
+# Each configuration is defined per map size and controls three independent ratios:
+#   data_ratio  — share of training instances sampled at that size (sums to 1 across sizes)
+#   hole_ratio  — fraction of cells turned into holes at that size
+#   wait_ratio  — fraction of generated instances at that size requiring >=1 wait action
+#                 to resolve an agent conflict
+# The generator itself is built on top of Conflict-Based Search (CBS).
+
+map_sizes: [3, 4, 5, 6, 7, 8, 9, 10]   # NxN grids, eight sizes total
+
+training:
+  agent_count: 2                # train + validate exclusively on 2-agent instances
+  instances_per_round: 4000     # fixed every round
+  round_zero_config: random     # cold start: round 0's config is randomly sampled
+  # from round 1 on, the environment engineer (the current learner checkpoint)
+  # emits the config for the next round
+
+held_out_eval:
+  agent_counts: [3, 4, 5]        # generalization probe — never trained on directly
+  wait_ratio_subsets: [0.25, 0.50, 0.75]   # wr_025 / wr_050 / wr_075
+  hole_ratios: [0.1, 0.2, 0.3, 0.4, 0.5]
+  samples_per_size_per_subset: 50
+  metrics:
+    - valid_rate     # legal, conflict-free paths reaching every goal
+    - optimal_rate   # the shortest / optimal solution, not just a legal one
+
+# The winning context recipe (V6)'s data-ratio allocation, round 1 -> round 2 (Table 6).
+# This is the concrete behavioral signature the video calls out: V6 backs off the
+# hardest bucket (10x10) instead of over-investing in it, then walks that competence
+# frontier inward as the model improves (7x7-9x9 plateau, 10x10 keeps dropping).
+v6_data_ratio_allocation:
+  "3x3":  { round1: 0.05,  round2: 0.05 }
+  "4x4":  { round1: 0.10,  round2: 0.10 }
+  "5x5":  { round1: 0.15,  round2: 0.15 }
+  "6x6":  { round1: 0.15,  round2: 0.15 }
+  "7x7":  { round1: 0.15,  round2: 0.175 }
+  "8x8":  { round1: 0.175, round2: 0.175 }
+  "9x9":  { round1: 0.175, round2: 0.175 }
+  "10x10": { round1: 0.05, round2: 0.03 }   # the frontier back-off — the paper's
+                                              # strongest predictor of good redesign

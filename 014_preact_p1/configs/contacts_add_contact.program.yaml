@@ -1,0 +1,60 @@
+# contacts_add_contact.program.yaml -- Listing 1 / Figure 4 from the paper:
+# the actual compiled "add a contact" program from the corpus
+# (ContactsAddContact, AndroidWorld). This is the "Emilia Gonzalez program"
+# named throughout both episodes. Transcribed verbatim from SEG 07-08 of
+# 014_preact_p1/script.md and backlog/010_preact.md. This exact structure is
+# also embedded as pure-Python data in code/state_machine.py so the demo runs
+# with zero YAML-parsing dependency -- this file is the canonical, readable
+# source of truth for it.
+
+task_family: "ContactsAddContact"
+dedup_signature: "android.contacts.add_contact.v1"   # (paper: metadata M carries a dedup signature identifying the task family)
+
+parameters:            # lifted out of the transitions -- makes one program serve every future request
+  - first_name
+  - last_name
+  - phone_number
+
+states:
+  - id: contacts_app_open
+    verify: { predicate: expect_element, resource_id: "...floating_action_button" }
+  - id: create_contact_form
+    verify: { predicate: expect_element, element: "first-name EditText", visible: true }
+  - id: first_name_entered
+    verify: { predicate: expect_element, element: "last-name field", visible: true }
+  - id: last_name_entered
+    verify: { predicate: expect_element, element: "phone field", visible: true }
+  - id: phone_entered
+    verify: { predicate: expect_element, element: "mobile phone-type selector", visible: true }
+  - id: phone_type_selected
+    verify: { predicate: expect_element, element: "Save button", visible: true }
+  - id: contact_saved
+    terminal: true
+    verify: { predicate: none }   # terminal state -- nothing further to check on replay
+
+transitions:
+  - { src: contacts_app_open,    dst: create_contact_form,  action: { kind: click,    target: floating_action_button } }
+  - { src: create_contact_form,  dst: first_name_entered,   action: { kind: type,     target: first_name_field,  value_param: first_name } }
+  - { src: first_name_entered,   dst: last_name_entered,    action: { kind: type,     target: last_name_field,   value_param: last_name } }
+  - { src: last_name_entered,    dst: phone_entered,        action: { kind: type,     target: phone_field,       value_param: phone_number } }
+  - { src: phone_entered,        dst: phone_type_selected,  action: { kind: click,    target: mobile_phone_type_selector } }
+  - { src: phone_type_selected,  dst: contact_saved,        action: { kind: click,    target: save_button } }
+
+compiler_note: >
+  The paper notes the compiler emits one small redundancy -- two
+  transitions out of contacts_app_open -- which the replayer simply
+  tolerates. (paper) Not reproduced structurally above since only one
+  canonical path is needed to run the demo; flagged here for completeness.
+
+the_two_faces_of_this_exact_program:
+  part_1_role: >
+    The clean 7-state listing -- introduced whole across SEG 07-08 of
+    014_preact_p1/script.md as the concrete artifact the entire replay
+    mechanism revolves around.
+  part_2_role: >
+    Table 3, row 1 of 015_preact_p2 -- under gate-off, the identical task
+    family compiles into a program that walks the whole form, presses
+    Save, and leaves no contact behind. Coverage 100%. Score 0. Same
+    artifact type, opposite outcome, depending only on whether the
+    store-time gate ran. See code/demo.py for a runnable version of both
+    outcomes.

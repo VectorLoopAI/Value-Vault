@@ -1,0 +1,81 @@
+# compile_pipeline.yaml -- the graph formalism, the four-step compile
+# pipeline, and every training-run config discussed across both videos,
+# transcribed from backlog/011_compiling_workflows_into_weights.md
+# (itself drawn from "Compiling Agentic Workflows into LLM Weights",
+# arXiv:2605.22502) and cross-checked against both scripts. Values marked
+# (paper) are stated in the source paper; (paper, illustrative) marks a line
+# the paper itself frames as an example, not a literal spec.
+
+formalism:
+  graph: "F = (N, E, n0, T)"                              # (paper)
+  N_nodes: "role (agent | user) + a prompt template"       # (paper)
+  E_edges: "E subset of N x N x C -- edges carry optional conditions"  # (paper)
+  n0_start_node: "single start node"                       # (paper)
+  T_terminal_nodes: ["success", "abandonment", "escalation"]  # (paper) -- not success-only
+  key_move: "the graph/flowchart is the specification -- it is what you compile, not what you run"  # (paper)
+
+four_step_pipeline:
+  step_1_define: "define the procedure as a directed graph (flowchart)"          # (paper)
+  step_2_traverse: "generate synthetic conversations by traversing every valid path through it"  # (paper)
+  step_3_finetune: "fine-tune the LLM on those conversations with FULL parameter updates, not LoRA"  # (paper)
+  step_4_deploy: "deploy without orchestration -- the LLM has learned to self-orchestrate"  # (paper)
+  training_data_generator_model: "Claude Sonnet 4.5"       # (paper)
+  training_data_annotation: "none -- model trains only on natural dialogue, no procedural annotations"  # (paper)
+
+deploy_system_prompt:
+  example: "You are a helpful travel booking assistant."   # (paper, illustrative -- script SEG10: "literally something like")
+  contains_no: ["procedural instructions", "flowchart state", "routing logic"]  # (paper)
+  note: "the entire scaffold that produced the training data is absent from the serving path"  # (paper)
+
+full_finetune_vs_lora:
+  companion_paper: "Procedural knowledge is not low-rank (Dennis et al., 2026b)"  # (paper)
+  finding: "LoRA ranks 16-128 fail to approach full fine-tuning on procedural tasks"  # (paper)
+  ranks_swept: [16, 32, 64, 128]                            # (paper)
+  conclusion: "full parameter fine-tune is a deliberate choice, not laziness"  # (paper)
+
+training_runs:
+  travel_3b:
+    model: "Qwen 2.5 3B Instruct"                           # (paper)
+    gpu: "1x RTX 5090"                                      # (paper)
+    conversations_total: 2125                                # (paper)
+    conversations_train: 1912                                # (paper)
+    conversations_held_out: 213                               # (paper)
+    optimizer: "8-bit AdamW"                                 # (paper)
+    lr: "2e-5, cosine decay"                                  # (paper)
+    effective_batch_size: 16                                  # (paper)
+    epochs: 20                                                 # (paper)
+    wallclock_hours: 3.5                                      # (paper)
+    best_checkpoint_epoch: 4                                  # (paper)
+  zoom_8b:
+    model: "Qwen3-8B"                                         # (paper)
+    gpu: "8x A100, DeepSpeed ZeRO-3"                          # (paper)
+    conversations_per_run: 870                                # (paper)
+    seeds_used: "42-49 (8 seeds), concatenated"               # (paper)
+    conversations_total_stated: 6264                          # (paper) -- see README's rounding-discrepancy note
+    dedup: "none needed -- identical paths produce different conversations via seed-dependent scenario sampling"  # (paper)
+    lr: "2e-5"                                                 # (paper)
+    effective_batch_size: 32                                   # (paper)
+    epochs: 10                                                 # (paper)
+    best_checkpoint_epoch: 2                                   # (paper)
+  insurance_8b:
+    model: "Qwen3-8B"                                         # (paper)
+    gpu: "8x A100, DeepSpeed ZeRO-3"                          # (paper)
+    conversations_total: 3000                                  # (paper)
+    conversations_train: 2700                                  # (paper)
+    conversations_held_out: 300                                 # (paper)
+    lr: "2e-5"                                                 # (paper)
+    effective_batch_size: 32                                    # (paper)
+    epochs: 20                                                  # (paper) -- vs 10 for Zoom, "the larger procedure requires more passes"
+    best_checkpoint_epoch: 3                                    # (paper)
+
+recompile_flexibility:
+  data_generation_convos: "~1,600"                            # (paper)
+  data_generation_time: "15-30 min with concurrency (~60 min sequential)"  # (paper)
+  data_generation_bottleneck: "per-account API rate limits, not local compute"  # (paper)
+  finetune_8b_min_gpu: "fits a single H200 for full-precision AdamW (params + grads + optimizer states ~96GB)"  # (paper)
+  finetune_8xH200_time: "10-15 min (data-parallel, ~3x BF16 throughput, 12 epochs)"  # (paper)
+  finetune_single_A100_time: "~3 hours (needs 8-bit AdamW to fit)"  # (paper)
+  spotcheck: "50-scenario vLLM-batched spot-check, ~5 min warm / 10-15 min cold"  # (paper)
+  fully_optimized_cycle: "30-50 minutes (8x H200 + parallelized API requests)"  # (paper)
+  single_gpu_practitioner_cycle: "~3-4 hours, dominated by training"  # (paper)
+  framing: "comparable to a CI/CD build for a large application"  # (paper)

@@ -1,0 +1,45 @@
+# meta_optimizer_config.yaml — Part 2's harness-evolution loop (Autodata §4).
+# Reference reconstruction from backlog/012_autodata.md.
+
+setup:
+  domain: cs_research              # (paper) meta-optimization was run on CS only
+  train_papers: 50                 # (paper)
+  val_papers: 25                   # (paper)
+  total_iterations: 233            # (paper) total budget across the run
+  session_timeout_hours: 6         # (paper) per-session wall clock cap
+  reported_headline_iteration: 124 # (paper) Table 7's "Iter 124" result;
+                                    # the paper does not explicitly reconcile
+                                    # this with the 233-iteration total budget
+
+# The four conditions a generated CS question must ALL satisfy to count as a
+# "win" the meta-optimizer hill-climbs on -- this is the weak-vs-strong signal
+# from Part 1, baked in as the optimizer's reward.
+success_definition:
+  weak_solver_max: 0.65            # (paper)
+  weak_solver_best_attempt_max: 0.75  # (paper) best single attempt, not average
+  strong_solver_min: 0.60          # (paper)
+  strong_solver_max: 0.95          # (paper)
+  min_gap_pp: 20                   # (paper) strong - weak
+
+# Boltzmann-sampled parent selection: P(select candidate) ~ exp(score / T).
+# Low T strongly favors high scorers but still occasionally explores a weaker
+# candidate -- see code/boltzmann_sampler.py.
+parent_selection:
+  method: boltzmann                # (paper)
+  temperature: 0.1                 # (paper) "point-one" -- low, sharp preference
+  concurrent_lineages: true        # (paper) multiple iterations pick parents
+                                    # independently; not a single ladder
+
+# Re-evaluation noise handling (§4): solvers run at temperature 1.0, so a
+# single evaluation is noisy. Accepted candidates accumulate more evaluations
+# whenever re-sampled as a parent; the reported score is the running average.
+noise_handling:
+  solver_sampling_temperature: 1.0     # (paper)
+  strategy: accumulate_and_average     # (paper)
+
+# The harness-evolution acceptance gate itself (mirrors the inner-loop
+# weak-vs-strong rule, one level up): a mutant survives only if its
+# validation score is STRICTLY greater than its parent's. Ties are rejected.
+acceptance_gate:
+  mode: strict_improvement          # (paper)
+  tie_is_rejected: true             # (paper) no drift-by-tie

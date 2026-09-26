@@ -1,0 +1,53 @@
+# verify_gate.yaml -- the store-time double gate (Section 3.3), the mechanism
+# Part 2 of this episode is about. Transcribed from backlog/010_preact.md;
+# fields marked (paper) are stated or directly paraphrased from the source note.
+
+the_gate:
+  runs_when: "once, over the ENTIRE freshly compiled candidate program, at storage time -- not before an action, but before the corpus remembers anything"  # (paper)
+  procedure:
+    - "reset the environment to the task's clean initial state"
+    - "replay the candidate program there"
+    - "hand the result to the benchmark's own independent evaluator"
+  stored_only_if_BOTH_hold:                              # (paper) -- an AND, not an OR
+    - "the replay ran to its terminal state without error"
+    - "an independent evaluator scored a pass"
+  why_replay_success_alone_is_not_enough: >
+    reaching the last state proves the machine walked its own graph; it
+    proves nothing about the world. Checking that an action fired is not
+    the same as checking that the goal was met. (paper)
+
+the_failure_it_catches:
+  name: "coverage 100% / score 0"
+  definition: "a program executes every action to completion, reports success, and the independent evaluator scores it 0 -- the sharpest failure mode in the paper"  # (paper)
+  concrete_case: "ContactsAddContact (the 7-state Emilia Gonzalez program from Part 1) -- gate-off, it taps through every field and presses Save; a stale field left the first name blank, so no contact exists. Coverage 100%. Score 0."  # (paper)
+
+why_the_compiler_is_this_lossy:
+  audit_scope: { android_programs: 58, osworld_programs: 16, webarena_programs: 7 }  # (paper)
+  findings:
+    - "~28% of audited Android programs drop a navigate_back action"                 # (paper)
+    - "100% of audited WebArena programs inspect a screenshot of state that changes between runs"  # (paper)
+  webarena_rejection_rate_pct: 83   # (paper) -- roughly what the gate rejects on WebArena
+
+fallback_fix_cache_miss_semantics:
+  # Table 4, WebArena 12-task subset, n=4 -- the "one-line fix" from Part 2
+  problem: "PreAct's gate DELETES a rejected program between runs, so the next run arrives with no artifact at all -- unlike Muscle-Mem, whose blind replay fails fast (~30s) and falls straight through to a fresh CUA solve"  # (paper)
+  fix: "trigger a fresh CUA solve whenever the gate has emptied the corpus for a task -- matching Muscle-Mem's cache-miss semantics exactly"  # (paper)
+  effect: "warm SR goes from 2.0/12 to 6.25/12, exactly matching Muscle-Mem; Welch's t-test on the two warm-delta distributions gives |t| ~= 0.21, p ~= 0.84 -- statistically indistinguishable"  # (paper)
+  what_the_fix_does_not_change: "the gate still rejects ~83% of compiles on WebArena, and the fallback does not compromise the gate's Android/OSWorld monotonicity -- it only changes what happens on a cache miss"  # (paper)
+
+idempotency_limitation:
+  # the sharpest limitation in the paper -- Section 5.7, L6
+  mechanism_assumption: "the gate works by LITERALLY re-running the candidate program"                # (paper)
+  safe_in: "a resettable benchmark environment"                                                        # (paper)
+  unsafe_in: "any real, non-idempotent deployment -- re-running 'add contact Emilia Gonzalez' creates a second Emilia Gonzalez; re-running 'send the email' or 'submit the payment' duplicates the side effect instead of re-confirming the goal"  # (paper)
+  open_alternatives:                                                                                   # (paper) -- explicitly future work, not solved
+    - "a read-only end-state check"
+    - "a sandboxed dry run"
+    - "a transactional rollback"
+
+honesty_note: >
+  Table 1 in the source paper is flagged in the backlog note as
+  OCR-mangled/reconstructed from surrounding prose -- its fine-grained
+  cells are deliberately NOT reproduced here or anywhere in this Value
+  Vault. Only numbers independently stated in the paper's prose (Tables
+  2-5, the audit figures, and the narrated results) are used.

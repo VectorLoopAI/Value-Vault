@@ -1,0 +1,75 @@
+# context_modules.yaml — the five context modules shown to the model when it plays
+# environment engineer, and the six variants the paper ablates them into (paper §3.2,
+# Table 1 / SEG 09-10 / SEG 14).
+#
+# Composing context from these modules is the whole ballgame: which combination the
+# model sees between RL rounds determines whether it redesigns its own training
+# environment well or badly.
+
+modules:
+  F:
+    name: Failure breakdown
+    description: >
+      The latest validation outcome — aggregate valid/optimal rates plus per-map-size
+      counts for parse errors, illegal moves, conflicts, hole collisions, out-of-bound
+      moves, and goal failures. The raw evidence module; every variant includes it.
+  G:
+    name: Guideline
+    description: >
+      Task-level design heuristics, independent of any particular round (general
+      advice on how difficulty/hole/wait ratios interact with learnability).
+  H:
+    name: History
+    description: >
+      A short record of previous {failure, config} pairs. Tested both WITH and
+      WITHOUT the randomly-sampled round-0 default config included — including the
+      default makes the model treat the random baseline as a recommendation, which is
+      exactly the failure mode the winning variant removes.
+  S:
+    name: Summary
+    description: >
+      A model-generated explanation of the current config choice, carried forward
+      into later rounds. This is the module that backfires (see notes below) — do not
+      include it in a production recipe.
+  T:
+    name: Training details
+    description: >
+      The RL objective already in use (reward design, adaptive-weight schedule). Does
+      NOT expose held-out instances or evaluation labels, so it supports
+      training-aware environment design rather than reward hacking. A second ablation
+      (Table 7, not part of the V1-V6 sweep) found that a stripped "bookkeeping-only"
+      version of this module (round index, epochs-per-round, total-epochs — no reward
+      formula, no hyperparameters) OUTPERFORMS the full-details version on every
+      benchmark. The model mainly needs to know where it is in the loop.
+
+variants:
+  V1: [F]
+  V2: [F, G]
+  V3: [F, G, H_with_default]
+  V4: [F, G, H_without_default]
+  V5: [F, G, H_without_default, S]
+  V6: [F, G, H_without_default, T]   # the paper's adopted final recipe — no Summary
+
+winning_variant: V6
+
+# Behavioral ranking (Table 5) across five dimensions: Signal salience, Edit
+# granularity, Causal (task-grounded) modeling, Cross-round self-correction, Task
+# model. V6 is the only variant that satisfies all five; V5 and V1 satisfy none.
+ablation_ranking:
+  V6: { dimensions_satisfied: 5, notes: "adopted final recipe" }
+  V4: { dimensions_satisfied: 3 }
+  V3: { dimensions_satisfied: 2 }
+  V2: { dimensions_satisfied: 1 }
+  V5: { dimensions_satisfied: 0, notes: "self-summary overrides raw failure evidence -- worse than having no history-derived module at all" }
+  V1: { dimensions_satisfied: 0 }
+
+# Recommended production recipe: combine BOTH ablation wins from the video —
+# V6's module set (F + G + H_without_default + T), with T restricted to the
+# bookkeeping-only variant from the Table 7 ablation.
+recommended_production_recipe:
+  modules: [F, G, H_without_default, T_bookkeeping_only]
+  rationale: >
+    V6 (this file's winning_variant) already drops Summary and the round-0 default.
+    Layering the Table 7 finding on top -- giving the training-details module only
+    round index / epochs-per-round / total-epochs, not the reward formula or
+    hyperparameters -- is strictly better on every reported benchmark and metric.

@@ -1,0 +1,59 @@
+# program_schema.yaml -- the formal program representation from "PreAct:
+# Computer-Using Agents That Get Faster On Repeated Tasks" (Bojie Li, Pine AI,
+# arXiv:2606.17929v1), transcribed from backlog/010_preact.md and cross-checked
+# against both episodes' script.md. Fields marked (paper) are stated or
+# directly paraphrased from the source note; nothing here is invented.
+
+tuple_definition:
+  formalism: "P = (S, T, M, V)"                         # (paper)
+  S_states: "id, description, verification predicate"    # (paper)
+  T_transitions: "(source_state, dest_state, action) -- fires action `a` to move src -> dst"  # (paper)
+  M_metadata: "task description, app context, parameter schema, dedup signature identifying the task family"  # (paper)
+  V_extraction_predicates: "data-extraction predicates for QA-style tasks, e.g. inspect_text"  # (paper)
+  core_thesis: "the thing the agent stores is exactly the thing it later runs"  # (paper, PreAct's one-sentence position)
+
+why_a_graph_not_a_flat_script:
+  # (paper) -- three things a flat linear script cannot do
+  - benefit: "per-state verification"
+    detail: "the agent knows immediately when an action did not land"
+  - benefit: "branching"
+    detail: "multiple outgoing transitions chosen by predicate -- e.g. a delete-confirmation dialog that only appears on some app versions"
+  - benefit: "in-place extension"
+    detail: "a new state/transition spliced in without regenerating the whole program"
+
+run_time_verification:
+  # Section 3.2 -- the mechanism the whole first half of the episode is about
+  rule: "observe first, then act"                        # (paper)
+  match: "the replayer checks a state's predicate against the live screen BEFORE firing the outgoing transition; on a match, the action fires with zero LLM calls"  # (paper)
+  mismatch: "replay halts and hands control to the CUA (computer-using-agent) fallback, which continues from the live screen"  # (paper)
+  hybrid_execution: "the new trace produced by the fallback compiles into a fresh program, so the corpus accrues new branches over time"  # (paper)
+  coverage_threshold_default: 0.5                        # tau, the default replay-acceptance threshold (paper)
+  isolated_ablation:
+    # (paper) -- run-time verification in isolation, flat blind script vs verified state machine, Android, n matched seeds
+    flat_script_mean: 10.6
+    flat_script_std: 1.14
+    flat_script_n_seeds: 5
+    state_machine_mean: 11.67
+    state_machine_std: 0.58
+    state_machine_n_seeds: 3
+    delta_tasks: 0.67
+    sign_test_p: 0.125
+    verdict: "real direction, not significant on these short-horizon benchmarks -- the paper's own words: 'the enabling design choice that makes trustworthy direct replay possible, not a large success-rate lever'"
+
+corpus_semantics:
+  mutative_not_append_only: true                         # (paper)
+  upsert_rule: "a fresh program with the same dedup signature REPLACES the older one -- UPSERT, not append"  # (paper)
+  effect: "the corpus does not just accumulate -- it refines its representation of a repeated task"  # (paper)
+  fallback_agent: "deliberately plain -- AndroidWorld's own T3A agent on mobile, Anthropic's Computer-Use API on desktop/web -- the verbatim upstream prompt, zero PreAct-specific additions"  # (paper)
+  corpus_scale_caveat: "only 58 Android programs after multi-week experiments -- behavior at 10^3-10^4 programs is unknown future work"  # (paper, L(future work))
+
+algorithm_1_loop:
+  # "verified compile-extend-replace loop" (paper)
+  - step: "select"
+    detail: "a Program Selector queries the corpus with the task goal, returns a candidate program or nothing"
+  - step: "replay"
+    detail: "walk the candidate's graph; if replay succeeds and coverage clears tau (default 0.5), return the trusted warm result"
+  - step: "fall back"
+    detail: "on predicate failure or action error, hand off to the CUA, which continues from the live screen (hybrid execution)"
+  - step: "verify and store"
+    detail: "on success, compile the trace into a candidate program and route it through the store-time gate (see verify_gate.yaml) before it goes anywhere near the corpus"

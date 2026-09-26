@@ -1,0 +1,37 @@
+# benchmarks.yaml -- the three benchmarks used in "PreAct" (arXiv:2606.17929v1),
+# spanning mobile, desktop, and web. All fields (paper).
+
+androidworld_official_15:
+  tasks: 15
+  domains: 8
+  model: "Gemini 3 Flash"
+  model_note: "roughly 10x cheaper than Claude Sonnet 4.6 at equivalent success rate"
+  fallback_agent: "AndroidWorld's own T3A agent"
+
+osworld_test_tiny:
+  tasks: 6
+  scope: "Chrome, LibreOffice Calc, LibreOffice Writer"
+  model: "Claude Sonnet 4.6"
+  fallback_agent: "Anthropic's Computer-Use API"
+
+webarena_shopping_admin:
+  tasks: 12
+  scope: "string-match answer-extraction against a Magento e-commerce admin panel"
+  model: "Claude Sonnet 4.6"
+  fallback_agent: "Anthropic's Computer-Use API"
+  data_volatility_note: "tasks read values off a page whose data keeps changing between runs -- the reason WebArena regresses even with the verify-gate on (see verify_gate.yaml)"
+
+protocol:
+  seeds: [42, 100, 1337, 2024, 7777]
+  seeds_used_for_android_headline: [42, 100, 1337]
+  per_seed: "fresh empty corpus, cold run then warm run on the same task list"
+  compile_model_default: "Claude Sonnet 4.6 (compilation/selector reasoning throughout)"
+  total_validation_cost: "~50 hours of autonomous container time, ~$30-35 of LLM spend"
+
+scoped_speedup_note: >
+  "8.5-13x faster" is the WebArena wall-clock measurement specifically --
+  a served replay against the corresponding fresh-agent solve (Figure 1).
+  Android and OSWorld replay speed are reported only qualitatively
+  ("near-free," "finishes in seconds") -- the paper gives NO separate
+  multiplier for either platform. Never state 8.5-13x as a universal
+  cross-platform figure.

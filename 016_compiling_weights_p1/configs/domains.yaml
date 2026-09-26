@@ -1,0 +1,43 @@
+# domains.yaml -- the three escalating test domains and the case-study
+# transcript failures named in Part 2, transcribed from
+# backlog/011_compiling_workflows_into_weights.md. Values marked (paper) are
+# stated directly in the source paper / backlog note.
+
+domains:
+  travel_booking:
+    nodes: 14                                                 # (paper)
+    decision_hubs: 3                                            # (paper)
+    unique_acyclic_paths: 86                                   # (paper)
+    turns_range: "4-17"                                         # (paper)
+    shape: "customer states preferences -> agent presents options -> accept/reject -> confirm or abandon"  # (paper)
+  zoom_support:
+    nodes: 14                                                   # (paper)
+    structure: "parallel, not the same 14 nodes as travel"      # (paper)
+    unique_acyclic_paths: 60                                    # (paper)
+    turns_range: "4-17"                                         # (paper)
+    note: "agent must know Zoom's actual UI, settings menus, error codes -- training data encodes product knowledge directly into weights, not just procedure"  # (paper)
+  insurance_claims:
+    nodes: 55                                                    # (paper) -- ~4x the other two
+    decision_hubs: 6                                             # (paper)
+    unique_acyclic_paths: 2381                                   # (paper)
+    turns_range: "9-39"                                           # (paper)
+    structural_complexity:
+      - "nested loop: document requested -> reviewed -> requested again"       # (paper)
+      - "cross-phase dependency: coverage decision constrains later settlement options"  # (paper)
+
+case_study_failures:
+  # Appendix A transcripts, LangGraph orchestrator failures -- named in Part 2
+  # to show the failure mode is architectural (node-level generation with no
+  # global conversation awareness), not a prompting bug.
+  travel:
+    failure: "asks the customer for the same dates/preferences 3 separate times before presenting options, at turn 14"  # (paper)
+  zoom:
+    failure: "packs 4 fixes into a single turn, one of them wrong, must retract it"  # (paper)
+  insurance:
+    failure: "after failing twice to answer a direct coverage-gap question, escalates to a 'senior specialist' -- a handoff that no actual system backs"  # (paper)
+  diagnosis: "node-level generation has no global conversation awareness -- each node writes its turn without knowing what's already been covered. The compiled model reasons over the whole procedure at once because the whole procedure is in the weights."  # (paper)
+
+subterranean_agent_style:
+  interview_style_pct_one_question_turns: 64                    # (paper) -- % of the compiled model's turns containing exactly one question
+  total_words_per_conversation: "~1,200-1,400, comparable across conditions"  # (paper)
+  reading: "same information exchanged, just sliced into different-sized turns"  # (paper)

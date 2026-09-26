@@ -1,0 +1,46 @@
+# acceptance_criteria.yaml — per-domain acceptance rules from Agentic Self-Instruct
+# (Autodata paper, §3). Every numeric constant is flagged (paper) or (illustrative).
+# Reference reconstruction from backlog/012_autodata.md — no paper repo was public
+# at production time.
+
+# --- Domain 1: CS research questions (§3.1) --------------------------------
+# "Too easy" failure mode: static generation collapses the weak/strong gap to
+# 0.019. Fixed numeric thresholds work here because the failure direction is
+# known and stable.
+cs_research:
+  mode: threshold                 # (paper) explicit numeric gate
+  strong_solver_min: 0.65         # (paper) strong solver must clear this
+  weak_solver_max: 0.50           # (paper) weak solver must stay under this
+  min_gap_pp: 20                  # (paper) strong - weak, percentage points
+  judge_short_circuits_on_weak_pass: true   # (paper) only score strong solver
+                                             # if weak solver already passed
+                                             # (compute-saving order of ops)
+  observed_mean_rounds_to_accept: 6.59      # (paper) informational, not a config
+
+# --- Domain 2: legal reasoning (§3.2) ---------------------------------------
+# "Too hard" failure mode: static generation produces a weak-solver average of
+# 0.159 with many flat zeros -- GRPO gets no signal. Porting the CS thresholds
+# here would accept most of that broken pool, so the paper deliberately does
+# NOT use fixed numeric thresholds -- the loop-judge asks a qualitative
+# question instead. See prompts/loop_judge_legal.md.
+legal_reasoning:
+  mode: judge_verdict             # (paper) no numeric threshold by design
+  fixed_thresholds: null
+  judge_question: >
+    Is this example GRPO-suitable? (Not: is it hard enough. See
+    prompts/loop_judge_legal.md for the full verdict contract.)
+  observed_mean_rounds_to_accept: 4.98       # (paper) informational only
+  grpo_suitability_target_distribution:      # (paper) what "good" looks like,
+    high_pct: 52                             # not a gate the code enforces --
+    medium_pct: 43                           # the loop-judge's qualitative call
+    low_pct: 2                               # is what actually decides accept/reject
+
+# --- Domain 3: scientific reasoning over mathematical objects (§3.3) -------
+# The weak solver here is already a strong reasoner, so acceptance is a
+# strict pass/fail gate over repeated attempts rather than an average score.
+scientific_reasoning:
+  mode: pass_fail_gate            # (paper) discrete, not a continuous score
+  attempts_per_solver: 4          # (paper)
+  weak_solver_max_correct: 1      # (paper) "at most 1 of 4" -- zero tolerance
+                                   #  for ambiguity above this
+  strong_solver_min_correct: 3    # (paper) "at least 3 of 4"
